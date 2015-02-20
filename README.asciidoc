@@ -1,0 +1,21 @@
+= About This Project
+
+Simple client for the Twitter protocol
+
+= Usage
+
+The `yamba-client` module can be included into another Gradle-based Android application project as a library. Additionally, this module can be compiled directly into a JAR/AAR for distribution:
+
+----
+$ gradlew assembleRelease
+## then ##
+$ cp yamba-client/build/intermediates/bundles/release/classes.jar ./yambaclientlib.jar
+## or ##
+$ cp yamba-client/build/outputs/aar/yamba-client-release.aar ./yambaclientlib.aar
+----
+
+== Legal
+
+Please see ++NOTICE++ file in this directory for copyright, license terms, and legal disclaimers.
+
+Copyright © 2012 Marakana Inc.
