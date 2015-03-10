@@ -43,7 +43,7 @@ public final class YambaClient {
     /**
      * The default Yamba service
      */
-    public static final String DEFAULT_API_ROOT = "http://yamba.marakana.com/api";
+    public static final String DEFAULT_API_ROOT = "http://yamba.newcircle.com/api";
 
     /**
      * Created at format
