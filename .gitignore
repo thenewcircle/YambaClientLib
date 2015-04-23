@@ -36,3 +36,5 @@ Thumbs.db
 .idea/
 .gradle
 local.properties
+gradle.properties
+
