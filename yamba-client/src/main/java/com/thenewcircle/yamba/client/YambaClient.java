@@ -59,7 +59,7 @@ public final class YambaClient {
 
     private static final String TAG = "YambaClient";
     private static int DEFAULT_TIMEOUT = 60000;
-    private static final String DEFAULT_USER_AGENT = "YambaClient/1.0";
+    private static final String DEFAULT_USER_AGENT = "YambaClient/2.0";
 
     /**
      * TimelineProcessor
@@ -227,7 +227,7 @@ public final class YambaClient {
 
                     @Override
                     public void onTimelineStatus(long id, Date createdAt, String user, String msg) {
-                        statuses.add(new YambaStatus(id, createdAt, user, msg.toUpperCase()));
+                        statuses.add(new YambaStatus(id, createdAt, user, msg));
                     }
                 });
 
