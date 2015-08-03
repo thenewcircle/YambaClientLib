@@ -2,6 +2,7 @@
 package com.thenewcircle.yamba.client;
 
 import android.text.TextUtils;
+import android.util.Base64;
 import android.util.Log;
 
 import org.apache.http.HttpEntity;
@@ -27,8 +28,14 @@ import org.xmlpull.v1.XmlPullParserFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -84,6 +91,7 @@ public final class YambaClient {
 
     private final String username;
     private final String password;
+    private final String defaultCharSet;
     private final String apiRoot;
     private String apiRootHost;
     private int apiRootPort;
@@ -127,6 +135,8 @@ public final class YambaClient {
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException("Invalid API Root: " + apiRoot);
         }
+
+        this.defaultCharSet = Charset.defaultCharset().displayName();
     }
 
     /**
@@ -150,7 +160,7 @@ public final class YambaClient {
     public void postStatus(String status, double latitude, double longitude)
             throws YambaClientException {
         try {
-            HttpPost post = new HttpPost(this.getUri("/statuses/update.xml"));
+            URL endpoint = this.getUri("/statuses/update.xml");
             List<NameValuePair> postParams = new ArrayList<NameValuePair>(3);
             postParams.add(new BasicNameValuePair("status", status));
             if (-90.00 <= latitude && latitude <= 90.00
@@ -160,19 +170,30 @@ public final class YambaClient {
                 postParams.add(new BasicNameValuePair("long", String
                         .valueOf(longitude)));
             }
-            post.setEntity(new UrlEncodedFormEntity(postParams, HTTP.UTF_8));
-            HttpClient client = this.getHttpClient();
+
+            HttpURLConnection connection = getConnection(endpoint);
+            String postBody = getFormBody(postParams);
             try {
-                Log.d(TAG,
-                        "Submitting " + postParams + " to " + post.getURI());
-                HttpResponse response = client.execute(post);
-                this.checkResponse(response);
-                HttpEntity entity = response.getEntity();
-                if (entity != null) {
-                    entity.consumeContent();
+                Log.d(TAG, "Submitting " + postParams + " to " + endpoint);
+                this.attachBasicAuthentication(connection, this.username, this.password);
+                connection.setDoOutput(true);
+                connection.connect();
+
+                //Write the form data
+                OutputStream output = connection.getOutputStream();
+                try {
+                    output.write(postBody.getBytes(this.defaultCharSet));
+                    output.flush();
+                } finally {
+                    if (output != null) {
+                        output.close();
+                    }
                 }
+
+                //Verify response
+                this.checkResponse(connection);
             } finally {
-                client.getConnectionManager().shutdown();
+                connection.disconnect();
             }
         } catch (Exception e) {
             throw translateException(e);
@@ -223,28 +244,26 @@ public final class YambaClient {
             throws YambaClientException {
         long t = System.currentTimeMillis();
         try {
-            HttpGet get = new HttpGet(
-                    this.getUri("/statuses/friends_timeline.xml"));
-            HttpClient client = this.getHttpClient();
+            URL endpoint = this.getUri("/statuses/friends_timeline.xml");
+            HttpURLConnection connection = this.getConnection(endpoint);
             try {
-                Log.d(TAG, "Getting " + get.getURI());
-                HttpResponse response = client.execute(get);
-                this.checkResponse(response);
-                HttpEntity entity = response.getEntity();
-                if (entity == null) {
-                    throw new YambaClientException("No friends update data");
-                }
+                Log.d(TAG, "Getting " + endpoint);
+                this.attachBasicAuthentication(connection, this.username, this.password);
+                connection.setDoInput(true);
+                connection.connect();
+                //Verify response
+                this.checkResponse(connection);
 
+                //Pull and parse the timeline
                 XmlPullParser xpp = this.getXmlPullParser();
-                InputStream in = entity.getContent();
+                InputStream in = connection.getInputStream();
                 try {
                     parseStatus(xpp, in, hdlr);
                 } finally {
                     in.close();
-                    entity.consumeContent();
                 }
             } finally {
-                client.getConnectionManager().shutdown();
+                connection.disconnect();
             }
         } catch (Exception e) {
             throw translateException(e);
@@ -253,10 +272,10 @@ public final class YambaClient {
         Log.d(TAG, "Fetched timeline in " + t + " ms");
     }
 
-    private void checkResponse(HttpResponse response)
-            throws YambaClientException {
-        int responseCode = response.getStatusLine().getStatusCode();
-        String reason = response.getStatusLine().getReasonPhrase();
+    private void checkResponse(HttpURLConnection connection)
+            throws YambaClientException, IOException {
+        int responseCode = connection.getResponseCode();
+        String reason = connection.getResponseMessage();
         switch (responseCode) {
             case 200:
                 return;
@@ -274,21 +293,44 @@ public final class YambaClient {
                 && tag2.equals(stack.get(s - 1));
     }
 
-    private HttpClient getHttpClient() {
-        DefaultHttpClient httpclient = new DefaultHttpClient();
-        HttpParams params = new BasicHttpParams();
-        HttpConnectionParams.setConnectionTimeout(params, DEFAULT_TIMEOUT);
-        HttpConnectionParams.setSoTimeout(params, DEFAULT_TIMEOUT);
-        HttpProtocolParams.setUserAgent(params, DEFAULT_USER_AGENT);
-        httpclient.setParams(params);
-        httpclient.getCredentialsProvider().setCredentials(
-                new AuthScope(this.apiRootHost, this.apiRootPort),
-                new UsernamePasswordCredentials(this.username, this.password));
-        return httpclient;
+    private HttpURLConnection getConnection(URL endpoint) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) endpoint.openConnection();
+        connection.setReadTimeout(DEFAULT_TIMEOUT);
+        connection.setConnectTimeout(DEFAULT_TIMEOUT);
+        connection.setRequestProperty("User-Agent", DEFAULT_USER_AGENT);
+
+        return connection;
     }
 
-    private String getUri(String relativePath) {
-        return apiRoot + relativePath;
+    private void attachBasicAuthentication(URLConnection connection,
+            String username, String password) {
+        //Add Basic Authentication Headers
+        String userpassword = username + ":" + password;
+        String encodedAuthorization = Base64.encodeToString(
+                userpassword.getBytes(), Base64.NO_WRAP);
+        connection.setRequestProperty("Authorization", "Basic "
+                + encodedAuthorization);
+    }
+
+    private String getFormBody(List<NameValuePair> formData) throws UnsupportedEncodingException {
+        if (formData == null) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < formData.size(); i++) {
+            NameValuePair item = formData.get(i);
+            sb.append( URLEncoder.encode(item.getName(), this.defaultCharSet) );
+            sb.append("=");
+            sb.append( URLEncoder.encode(item.getValue(), this.defaultCharSet) );
+            if (i != (formData.size() - 1)) {
+                sb.append("&");
+            }
+        }
+        return sb.toString();
+    }
+
+    private URL getUri(String relativePath) throws MalformedURLException {
+        return new URL(apiRoot + relativePath);
     }
 
     private XmlPullParser getXmlPullParser() throws YambaClientException {
