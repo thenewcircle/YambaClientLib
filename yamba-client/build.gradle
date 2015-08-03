@@ -9,13 +9,15 @@ group = 'com.newcircle'
 
 android {
     compileSdkVersion 19
-    buildToolsVersion "21.1.1"
+    buildToolsVersion "22.0.1"
 
     defaultConfig {
-        minSdkVersion 1
+        minSdkVersion 10
         targetSdkVersion 19
         versionCode 1
         versionName "1.0"
+
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
         release {
@@ -23,6 +25,13 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+}
+
+dependencies {
+    // Android Testing Support Library's runner and rules
+    androidTestCompile 'com.android.support.test:runner:0.3'
+    androidTestCompile 'com.android.support.test:rules:0.3'
+    androidTestCompile 'org.hamcrest:hamcrest-core:1.3'
 }
 
 def siteUrl = 'https://github.com/thenewcircle/yambaclientlib'      // Homepage URL of the library
