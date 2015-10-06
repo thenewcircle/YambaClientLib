@@ -19,7 +19,6 @@ public class ClientApiTest {
     private static final String TEST_USER = "student";
     private static final String TEST_PASS = "password";
 
-
     private static final int COUNT = 1;
     private static final int MAX = 25;
 
@@ -30,7 +29,8 @@ public class ClientApiTest {
 
     @Test
     public void postTimelineStatus() {
-        YambaClient client = new YambaClient(TEST_USER, TEST_PASS);
+        YambaClientInterface client =
+                YambaClient.newClient(TEST_USER, TEST_PASS);
         try {
             client.postStatus("Yamba Automated Test");
 
@@ -44,7 +44,8 @@ public class ClientApiTest {
 
     @Test
     public void getTimelineCount() {
-        YambaClient client = new YambaClient(TEST_USER, TEST_PASS);
+        YambaClientInterface client =
+                YambaClient.newClient(TEST_USER, TEST_PASS);
         try {
             List<YambaStatus> list = client.getTimeline(COUNT);
             assertEquals("List size should equal " + COUNT,
@@ -58,7 +59,8 @@ public class ClientApiTest {
 
     @Test
     public void getTimelineComplete() {
-        YambaClient client = new YambaClient(TEST_USER, TEST_PASS);
+        YambaClientInterface client =
+                YambaClient.newClient(TEST_USER, TEST_PASS);
         try {
             client.getTimeline(MAX);
 

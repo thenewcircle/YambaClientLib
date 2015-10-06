@@ -5,23 +5,7 @@ import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
 import org.apache.http.conn.ConnectTimeoutException;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.HttpConnectionParams;
-import org.apache.http.params.HttpParams;
-import org.apache.http.params.HttpProtocolParams;
-import org.apache.http.protocol.HTTP;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -40,13 +24,14 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Stack;
 
 /**
  * YambaClient
  */
-public final class YambaClient {
+public final class YambaClient implements YambaClientInterface {
     /**
      * The default Yamba service
      */
@@ -93,27 +78,22 @@ public final class YambaClient {
     private final String password;
     private final String defaultCharSet;
     private final String apiRoot;
-    private String apiRootHost;
-    private int apiRootPort;
 
     /**
-     * Ctor: Create client for default endpoint.
-     *
-     * @param username
-     * @param password
+     * Create a client for the default endpoint
+     * @param username Account username
+     * @param password Account password
      */
-    public YambaClient(String username, String password) {
+    public static YambaClientInterface newClient(String username, String password) {
+        return new YambaClient(username, password);
+    }
+
+
+    private YambaClient(String username, String password) {
         this(username, password, null);
     }
 
-    /**
-     * Full constructor.
-     *
-     * @param username
-     * @param password
-     * @param apiRoot
-     */
-    public YambaClient(String username, String password, String apiRoot) {
+    private YambaClient(String username, String password, String apiRoot) {
         if (TextUtils.isEmpty(username)) {
             throw new IllegalArgumentException("Username must not be blank");
         }
@@ -130,8 +110,6 @@ public final class YambaClient {
         try {
             URL url = new URL(apiRoot);
             this.apiRoot = apiRoot;
-            this.apiRootHost = url.getHost();
-            this.apiRootPort = url.getPort();
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException("Invalid API Root: " + apiRoot);
         }
@@ -139,36 +117,22 @@ public final class YambaClient {
         this.defaultCharSet = Charset.defaultCharset().displayName();
     }
 
-    /**
-     * Post status without location.
-     *
-     * @param status
-     * @throws YambaClientException
-     */
+    @Override
     public void postStatus(String status) throws YambaClientException {
         postStatus(status, Double.NaN, Double.NaN);
     }
 
-    /**
-     * Post status at location.
-     *
-     * @param status
-     * @param latitude
-     * @param longitude
-     * @throws YambaClientException
-     */
+    @Override
     public void postStatus(String status, double latitude, double longitude)
             throws YambaClientException {
         try {
             URL endpoint = this.getUri("/statuses/update.xml");
-            List<NameValuePair> postParams = new ArrayList<NameValuePair>(3);
-            postParams.add(new BasicNameValuePair("status", status));
+            HashMap<String, String> postParams = new HashMap<>(3);
+            postParams.put("status", status);
             if (-90.00 <= latitude && latitude <= 90.00
                     && -180.00 <= longitude && longitude <= 180.00) {
-                postParams.add(new BasicNameValuePair("lat", String
-                        .valueOf(latitude)));
-                postParams.add(new BasicNameValuePair("long", String
-                        .valueOf(longitude)));
+                postParams.put("lat", String.valueOf(latitude));
+                postParams.put("long", String.valueOf(longitude));
             }
 
             HttpURLConnection connection = getConnection(endpoint);
@@ -200,13 +164,7 @@ public final class YambaClient {
         }
     }
 
-    /**
-     * Convenience method to get a list of recent statuses.
-     *
-     * @param maxPosts max on length of the timeline
-     * @return a list of YambaStatus objects
-     * @throws YambaClientException
-     */
+    @Override
     public List<YambaStatus> getTimeline(final int maxPosts) throws YambaClientException {
         final List<YambaStatus> statuses = new ArrayList<YambaStatus>();
 
@@ -240,7 +198,7 @@ public final class YambaClient {
      * @param hdlr callback handler for each status
      * @throws YambaClientException
      */
-    public void fetchFriendsTimeline(TimelineProcessor hdlr)
+    private void fetchFriendsTimeline(TimelineProcessor hdlr)
             throws YambaClientException {
         long t = System.currentTimeMillis();
         try {
@@ -312,21 +270,18 @@ public final class YambaClient {
                 + encodedAuthorization);
     }
 
-    private String getFormBody(List<NameValuePair> formData) throws UnsupportedEncodingException {
+    private String getFormBody(HashMap<String, String> formData) throws UnsupportedEncodingException {
         if (formData == null) {
             return null;
         }
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < formData.size(); i++) {
-            NameValuePair item = formData.get(i);
-            sb.append( URLEncoder.encode(item.getName(), this.defaultCharSet) );
-            sb.append("=");
-            sb.append( URLEncoder.encode(item.getValue(), this.defaultCharSet) );
-            if (i != (formData.size() - 1)) {
-                sb.append("&");
-            }
+        List<String> params = new ArrayList<>();
+        for (String key : formData.keySet()) {
+            String value = formData.get(key);
+            params.add(URLEncoder.encode(key, this.defaultCharSet)
+                    + "="
+                    + URLEncoder.encode(value, this.defaultCharSet));
         }
-        return sb.toString();
+        return TextUtils.join("&", params);
     }
 
     private URL getUri(String relativePath) throws MalformedURLException {
