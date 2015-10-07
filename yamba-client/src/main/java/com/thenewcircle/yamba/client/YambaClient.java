@@ -79,31 +79,40 @@ public final class YambaClient implements YambaClientInterface {
     private final String defaultCharSet;
     private final String apiRoot;
 
+    /* Singleton injected instance */
     private static YambaClientInterface sClientInstance;
 
     /**
-     * Return a client for the default endpoint
+     * Return a new client for the default endpoint
      * @param username Account username
      * @param password Account password
      */
     public static synchronized YambaClientInterface getClient(String username,
                                                               String password) {
+        return getClient(username, password, null);
+    }
+
+    /**
+     * Return a new client for the default endpoint
+     * @param username Account username
+     * @param password Account password
+     * @param apiRoot Custom API endpoint URL
+     */
+    public static synchronized YambaClientInterface getClient(String username,
+                                                              String password,
+                                                              String apiRoot) {
         if (sClientInstance == null) {
-            sClientInstance = new YambaClient(username, password);
+            return new YambaClient(username, password, apiRoot);
         }
 
         return sClientInstance;
     }
 
     /**
-     * Inject a client instance. For use in automated test cases
+     * Inject a client instance. For use in automated test cases.
      */
     public static synchronized void setClientInstance(YambaClientInterface client) {
         sClientInstance = client;
-    }
-
-    private YambaClient(String username, String password) {
-        this(username, password, null);
     }
 
     private YambaClient(String username, String password, String apiRoot) {
