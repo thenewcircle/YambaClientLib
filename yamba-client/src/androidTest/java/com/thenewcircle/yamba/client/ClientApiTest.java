@@ -9,7 +9,7 @@ import org.junit.runner.RunWith;
 
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static com.google.common.truth.Truth.assert_;
 import static org.junit.Assert.fail;
 
 @RunWith(AndroidJUnit4.class)
@@ -22,19 +22,19 @@ public class ClientApiTest {
     private static final int COUNT = 1;
     private static final int MAX = 25;
 
+    YambaClientInterface mClient;
+
     @Before
     public void initTargetContext() {
-        //TODO: Initialize client for multiple tests?
+        mClient = YambaClient.getClient(TEST_USER, TEST_PASS);
     }
 
     @Test
     public void postTimelineStatus() {
-        YambaClientInterface client =
-                YambaClient.newClient(TEST_USER, TEST_PASS);
         try {
-            client.postStatus("Yamba Automated Test");
+            mClient.postStatus("Yamba Automated Test");
 
-            client.postStatus("Yamba Automated Location Test",
+            mClient.postStatus("Yamba Automated Location Test",
                     37.789529, -122.394193);
         } catch (YambaClientException e) {
             e.printStackTrace();
@@ -44,12 +44,11 @@ public class ClientApiTest {
 
     @Test
     public void getTimelineCount() {
-        YambaClientInterface client =
-                YambaClient.newClient(TEST_USER, TEST_PASS);
         try {
-            List<YambaStatus> list = client.getTimeline(COUNT);
-            assertEquals("List size should equal " + COUNT,
-                    list.size(), COUNT);
+            List<YambaStatus> list = mClient.getTimeline(COUNT);
+            assert_().withFailureMessage("List size should equal " + COUNT)
+                    .that(list.size())
+                    .isEqualTo(COUNT);
 
         } catch (YambaClientException e) {
             e.printStackTrace();
@@ -59,10 +58,8 @@ public class ClientApiTest {
 
     @Test
     public void getTimelineComplete() {
-        YambaClientInterface client =
-                YambaClient.newClient(TEST_USER, TEST_PASS);
         try {
-            client.getTimeline(MAX);
+            mClient.getTimeline(MAX);
 
             //Finishing with no exceptions means we passed
 

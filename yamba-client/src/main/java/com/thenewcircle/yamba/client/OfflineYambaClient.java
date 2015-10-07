@@ -53,7 +53,8 @@ public class OfflineYambaClient implements YambaClientInterface {
         synchronized (this) {
             if (statuses.size() > maxPosts) {
                 //Return the requested amount
-                result.subList(statuses.size() - maxPosts, statuses.size());
+                result.addAll(statuses.subList(
+                        statuses.size() - maxPosts, statuses.size()));
             } else {
                 //For a small list, return the whole thing
                 result.addAll(statuses);
